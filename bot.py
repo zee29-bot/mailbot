@@ -41,32 +41,9 @@ try:
         urllib3.packages.six.moves = sys.modules
 except:
     pass
-# ========================================================================import sys
-import types
 
-# ==================== PYTHON 3.13 imghdr PATCH ====================
-# Python 3.13 တွင် imghdr မရှိတော့သဖြင့် အလုပ်ဖြစ်အောင် အတုပြုလုပ်ခြင်း
-if 'imghdr' not in sys.modules:
-    fake_imghdr = types.ModuleType('imghdr')
-    def what(file, h=None):
-        if h: data = h
-        else:
-            if hasattr(file, 'read'):
-                pos = file.tell()
-                data = file.read(32)
-                file.seek(pos)
-            else:
-                try:
-                    with open(file, 'rb') as f: data = f.read(32)
-                except: return None
-        if data.startswith(b'\x89PNG\r\n\x1a\n'): return 'png'
-        if data.startswith(b'\xff\xd8'): return 'jpeg'
-        if data.startswith(b'GIF87a') or data.startswith(b'GIF89a'): return 'gif'
-        if data.startswith(b'RIFF') and data[8:12] == b'WEBP': return 'webp'
-        return None
-    fake_imghdr.what = what
-    sys.modules['imghdr'] = fake_imghdr
-# ====================================================================import sqlite3
+# ==============================================================
+import sqlite3
 import requests
 import random
 import re
@@ -397,7 +374,7 @@ def button_click_handler(update: Update, context: CallbackContext):
         query.edit_message_text("🎲 Auto mail အသစ်တစ်ခု ဆောက်ပေးနေပါသည်...")
         result = create_mail_api(password=FIXED_PASSWORD)
         if not result:
-            query.edit_message_text("❌ မေးလ်ဆောက်လုမရပါ။ Proxy လိုင်းကျပ်နေလို့ ဖြစ်နိုင်ပါသည်‹")
+            query.edit_message_text("❌ မေးလ်ဆောက်လုမရပါ။ လိုင်းကျပ်နေလို့ ဖြစ်နိုင်ပါသည်‹")
             return
         email, token, mail_id_api = result
         add_mail(uid, email, FIXED_PASSWORD, token, mail_id_api)
@@ -725,8 +702,7 @@ def main():
     server_thread.start()
     print("Keep-Alive Web Server Started successfully...")
 
-    request_kwargs = {'proxy_url': 'http://proxy.server:3128/', 'connect_timeout': 15.0, 'read_timeout': 15.0}
-    updater = Updater(token=BOT_TOKEN, request_kwargs=request_kwargs, use_context=True)
+    updater = Updater(token=BOT_TOKEN, use_context=True)
     dp = updater.dispatcher
 
     dp.add_handler(CommandHandler("start", start))
@@ -738,7 +714,7 @@ def main():
     dp.add_handler(MessageHandler(Filters.text & ~Filters.command, log_all_text_messages))
     dp.add_handler(MessageHandler(Filters.photo, log_all_photos))
 
-    print("Stable Mail Bot [ALL PTB VERSION ERRORS FIXED] & Running successfully on PythonAnywhere...")
+    print("Stable Mail Bot [ALL PTB VERSION ERRORS FIXED] & Running successfully on Railway...")
 
     while True:
         try:
