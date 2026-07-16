@@ -56,6 +56,13 @@ if 'imghdr' not in sys.modules:
         return None
     fake_imghdr.what = what
     sys.modules['imghdr'] = fake_imghdr
+    # Fake pkg_resources to prevent apscheduler crash on Python 3.13
+if 'pkg_resources' not in sys.modules:
+    fake_pkg = types.ModuleType('pkg_resources')
+    fake_pkg.get_distribution = lambda name: types.SimpleNamespace(version="0.0.0")
+    fake_pkg.DistributionNotFound = Exception
+    sys.modules['pkg_resources'] = fake_pkg
+
 # ====================================================================================================
 
 import sqlite3
