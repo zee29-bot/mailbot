@@ -1,52 +1,3 @@
-# ==================== PYTHON 3.13+ & PTB V13 COMPATIBILITY PATCH ====================
-import sys
-import types
-
-# 1. imghdr Module Patch
-if 'imghdr' not in sys.modules:
-    fake_imghdr = types.ModuleType('imghdr')
-    def what(file, h=None):
-        if h: data = h
-        else:
-            if hasattr(file, 'read'):
-                pos = file.tell()
-                data = file.read(32)
-                file.seek(pos)
-            else:
-                try:
-                    with open(file, 'rb') as f: data = f.read(32)
-                except: return None
-        if data.startswith(b'\x89PNG\r\n\x1a\n'): return 'png'
-        if data.startswith(b'\xff\xd8'): return 'jpeg'
-        if data.startswith(b'GIF87a') or data.startswith(b'GIF89a'): return 'gif'
-        if data.startswith(b'RIFF') and data[8:12] == b'WEBP': return 'webp'
-        return None
-    fake_imghdr.what = what
-    sys.modules['imghdr'] = fake_imghdr
-
-# 2. urllib3.contrib.appengine Error & six.moves Patch
-# python-telegram-bot v13 ၏ Internal Module တောင်းဆိုမှုများကို လှည့်စားခြင်း
-try:
-    import urllib3.contrib
-    if not hasattr(urllib3.contrib, 'appengine'):
-        urllib3.contrib.appengine = types.ModuleType('appengine')
-        urllib3.contrib.appengine.AppEngineManager = None
-except:
-    pass
-
-# telegram.vendor.ptb_urllib3.urllib3.packages.six.moves ရှာမတွေ့သည့် Error ကို ဖြေရှင်းရန်
-try:
-    import urllib3
-    if not hasattr(urllib3, 'packages'):
-        urllib3.packages = types.ModuleType('packages')
-    if not hasattr(urllib3.packages, 'six'):
-        urllib3.packages.six = types.ModuleType('six')
-        import sys
-        urllib3.packages.six.moves = sys.modules
-except:
-    pass
-# ====================================================================================
-
 import sqlite3
 import requests
 import random
@@ -63,12 +14,12 @@ from telegram import Update, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardR
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 
 # ================= CONFIGURATION =================
-BOT_TOKEN = "8815393066:AAHQsWeDn78kQyCAZoQBcU7p9H42uxpkIwQ"
+BOT_TOKEN = "ဒီနေရာမှာ BotFather ကရလာတဲ့ Token အသစ်ကို ထည့်ပါ"
 BASE_URL = "https://api.mail.tm"
 OWNER_ID = 5238487314
 FIXED_PASSWORD = "ZEE2944"
 
-# Flask Server (PythonAnywhere Keep-Alive အတွက်)
+# Flask Server (Railway Keep-Alive အတွက်)
 app = Flask('')
 
 @app.route('/')
@@ -221,8 +172,7 @@ def change_mail_owner_by_email(email, old_owner, new_owner):
 # ================= MAIL API FUNCTIONS =================
 def create_mail_api(password, custom_name=None):
     try:
-        proxies = {"http": "http://proxy.server:3128", "https": "http://proxy.server:3128"}
-        domain_data = requests.get(f"{BASE_URL}/domains", proxies=proxies, timeout=10).json()
+        domain_data = requests.get(f"{BASE_URL}/domains", timeout=10).json()
         if isinstance(domain_data, dict) and "hydra:member" in domain_data:
             domains_list = [d["domain"] for d in domain_data["hydra:member"] if "domain" in d]
             domain = min(domains_list, key=len) if domains_list else "mailtm.com"
@@ -237,20 +187,19 @@ def create_mail_api(password, custom_name=None):
         else:
             email = f"user{random.randint(1000,999999)}@{domain}"
 
-        acc = requests.post(f"{BASE_URL}/accounts", json={"address": email, "password": password}, proxies=proxies, timeout=10)
+        acc = requests.post(f"{BASE_URL}/accounts", json={"address": email, "password": password}, timeout=10)
         if acc.status_code != 201:
             return None
         acc_json = acc.json()
         mail_id_api = acc_json.get("id")
-        token_data = requests.post(f"{BASE_URL}/token", json={"address": email, "password": password}, proxies=proxies, timeout=10).json()
+        token_data = requests.post(f"{BASE_URL}/token", json={"address": email, "password": password}, timeout=10).json()
         return email, token_data.get("token"), mail_id_api
     except:
         return None
 
 def login_mail_api(email, password):
     try:
-        proxies = {"http": "http://proxy.server:3128", "https": "http://proxy.server:3128"}
-        token_data = requests.post(f"{BASE_URL}/token", json={"address": email, "password": password}, proxies=proxies, timeout=10).json()
+        token_data = requests.post(f"{BASE_URL}/token", json={"address": email, "password": password}, timeout=10).json()
         if "token" in token_data:
             return token_data["token"]
         return None
@@ -259,9 +208,8 @@ def login_mail_api(email, password):
 
 def fetch_messages_api(token):
     try:
-        proxies = {"http": "http://proxy.server:3128", "https": "http://proxy.server:3128"}
         headers = {"Authorization": f"Bearer {token}"}
-        res = requests.get(f"{BASE_URL}/messages", headers=headers, proxies=proxies, timeout=10)
+        res = requests.get(f"{BASE_URL}/messages", headers=headers, timeout=10)
         if res.status_code == 200:
             return res.json().get("hydra:member", [])
         return None
