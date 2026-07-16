@@ -4,3 +4,4 @@ pytz
 Flask
 urllib3<2.0.0
 six
+setuptools
