@@ -1,4 +1,26 @@
+import================ urllib3.contrib.appengine PATCH ====================
+# Python 3.13 အတွက် urllib3.contrib.appengine ကို အတုလုပ်ခြင်း
 import sys
+import types
+try:
+    import urllib3.contrib
+    if not hasattr(urllib3.contrib, 'appengine'):
+        urllib3.contrib.appengine = types.ModuleType('appengine')
+        urllib3.contrib.appengine.AppEngineManager = None
+except:
+    pass
+
+# telegram.vendor.ptb_urllib3.urllib3.packages.six.moves ရှာမတွေ့သည့် Error ကို ဖြေရှင်းရန်
+try:
+    import urllib3
+    if not hasattr(urllib3, 'packages'):
+        urllib3.packages = types.ModuleType('packages')
+    if not hasattr(urllib3.packages, 'six'):
+        urllib3.packages.six = types.ModuleType('six')
+        urllib3.packages.six.moves = sys.modules
+except:
+    pass
+# ========================================================================import sys
 import types
 
 # ==================== PYTHON 3.13 imghdr PATCH ====================
