@@ -59,9 +59,22 @@ if 'imghdr' not in sys.modules:
     # Fake pkg_resources to prevent apscheduler crash on Python 3.13
 if 'pkg_resources' not in sys.modules:
     fake_pkg = types.ModuleType('pkg_resources')
+    
+    # Mocking necessary attributes that libraries look for
     fake_pkg.get_distribution = lambda name: types.SimpleNamespace(version="0.0.0")
     fake_pkg.DistributionNotFound = Exception
+    fake_pkg.iter_entry_points = lambda group, name=None: []
+    
+    class EntryPoint:
+        @staticmethod
+        def parse(source, dist=None, installer=None, group=None):
+            return EntryPoint()
+        def load(self, require=True, *args, **kwargs):
+            return None
+            
+    fake_pkg.EntryPoint = EntryPoint
     sys.modules['pkg_resources'] = fake_pkg
+
 
 # ====================================================================================================
 
