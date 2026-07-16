@@ -1,28 +1,6 @@
 import sys
 import types
 
-# ==================== PYTHON 3.13 imghdr PATCH ====================
-if 'imghdr' not in sys.modules:
-    fake_imghdr = types.ModuleType('imghdr')
-    def what(file, h=None):
-        if h: data = h
-        else:
-            if hasattr(file, 'read'):
-                pos = file.tell()
-                data = file.read(32)
-                file.seek(pos)
-            else:
-                try:
-                    with open(file, 'rb') as f: data = f.read(32)
-                except: return None
-        if data.startswith(b'\x89PNG\r\n\x1a\n'): return 'png'
-        if data.startswith(b'\xff\xd8'): return 'jpeg'
-        if data.startswith(b'GIF87a') or data.startswith(b'GIF89a'): return 'gif'
-        if data.startswith(b'RIFF') and data[8:12] == b'WEBP': return 'webp'
-        return None
-    fake_imghdr.what = what
-    sys.modules['imghdr'] = fake_imghdr
-
 # ==================== urllib3.contrib.appengine PATCH ====================
 try:
     import urllib3.contrib
@@ -41,7 +19,6 @@ try:
         urllib3.packages.six.moves = sys.modules
 except:
     pass
-
 # ==============================================================
 import sqlite3
 import requests
