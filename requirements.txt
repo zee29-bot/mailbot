@@ -2,3 +2,5 @@ python-telegram-bot==13.15
 requests
 pytz
 Flask
+urllib3<2.0.0
+six
