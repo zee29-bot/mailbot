@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zee Mail Hub Pro</title>
+    <title>Zee Mail Hub Sync Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -17,15 +17,15 @@
         <div class="flex items-center justify-between pb-4 border-b border-gray-800">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/30">
-                    <i class="fa-solid fa-user-shield"></i>
+                    <i class="fa-solid fa-paper-plane"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg">ZEE PRIVATE MAIL HUB</h1>
-                    <p id="user-status" class="text-xs text-gray-400">Isolated Session Active</p>
+                    <h1 class="font-bold text-lg">ZEE MAIL HUB</h1>
+                    <p id="user-status" class="text-xs text-gray-400">Bot Sync Active</p>
                 </div>
             </div>
-            <span class="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
-                <i class="fa-solid fa-lock text-[10px]"></i> Encrypted
+            <span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-robot text-[10px]"></i> Bot Live
             </span>
         </div>
 
@@ -65,14 +65,46 @@
     </div>
 
     <script>
+        // Connected with your Bot Token
+        const BOT_TOKEN = "8815393066:AAHQsWeDn78kQyCAZoQBcU7p9H42uxpkIwQ";
+
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        const userId = tg.initDataUnsafe.user?.id || 'guest_' + Math.floor(Math.random() * 89999);
-        document.getElementById('user-status').innerText = `Session ID: Sec-${userId}`;
+        const user = tg.initDataUnsafe.user;
+        const userId = user?.id || 'guest_' + Math.floor(Math.random() * 89999);
+        document.getElementById('user-status').innerText = `User ID: ${userId}`;
 
         const safeDomains = ['1secmail.com', '1secmail.org', '1secmail.net', 'esi2.net', 'icznn.com'];
-        let myMailList = [];
+        let myMailList = JSON.parse(localStorage.getItem(`zee_mails_${userId}`)) || [];
+
+        renderMailBadges();
+        if (myMailList.length > 0) refreshAllInboxes();
+
+        function saveToStorage() {
+            localStorage.setItem(`zee_mails_${userId}`, JSON.stringify(myMailList));
+        }
+
+        async function sendMailToBotChat(emailText) {
+            if (!user?.id) return;
+
+            const text = `✉️ **New Mail Created**\n\nYour Mail: \`${emailText}\`\n\n_Created via Zee Mail Hub Mini App._`;
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        chat_id: user.id,
+                        text: text,
+                        parse_mode: 'Markdown'
+                    })
+                });
+            } catch (e) {
+                console.error("Failed to send message to Telegram Chat", e);
+            }
+        }
 
         function createMail(type) {
             tg.HapticFeedback.impactOccurred('medium');
@@ -90,10 +122,14 @@
             }
 
             myMailList.push({ login: cleanPrefix, domain: selectedDomain, email: fullEmail });
-            inputField.value = '';
+            saveToStorage();
             
+            // Send directly to Telegram Bot Chat
+            sendMailToBotChat(fullEmail);
+
+            inputField.value = '';
             renderMailBadges();
-            tg.showAlert(`Created Successfully:\n${fullEmail}`);
+            tg.showAlert(`Created & Sent to Chat:\n${fullEmail}`);
             refreshAllInboxes();
         }
 
@@ -114,6 +150,7 @@
 
         function clearAllMails() {
             myMailList = [];
+            saveToStorage();
             renderMailBadges();
             document.getElementById('inbox-list').innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Create emails above to check incoming OTPs.</p>';
             tg.showAlert('All active mails cleared!');
