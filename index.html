@@ -66,54 +66,70 @@
         document.getElementById('user-status').innerText = `User ID: ${tg.initDataUnsafe.user?.id || 'Guest'}`;
 
         let currentLogin = '';
-        let currentDomain = '';
+        let currentDomain = '1secmail.com';
+
+        const domainsList = ['1secmail.com', '1secmail.org', '1secmail.net'];
+
+        async function fetchWithProxy(url) {
+            try {
+                let res = await fetch(url);
+                if (res.ok) return await res.json();
+            } catch (e) {}
+            
+            // Fallback Proxy for Network Block / CORS Error
+            let proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            let res = await fetch(proxyUrl);
+            let data = await res.json();
+            return JSON.parse(data.contents);
+        }
 
         async function generateMail(type) {
             try {
                 tg.HapticFeedback.impactOccurred('medium');
                 let name = type === 'custom' ? document.getElementById('custom-name').value.trim() : 'user' + Math.floor(Math.random() * 899999 + 100000);
-                if(!name) return tg.showAlert('Please enter a custom name!');
+                if (!name) return tg.showAlert('Please enter a custom name!');
 
-                let domRes = await fetch('https://www.1secmail.com/api/v1/?action=getDomainList');
-                let domains = await domRes.json();
-                
-                currentLogin = name.toLowerCase();
-                currentDomain = domains[0] || '1secmail.com';
+                currentLogin = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                currentDomain = domainsList[Math.floor(Math.random() * domainsList.length)];
                 
                 let fullEmail = `${currentLogin}@${currentDomain}`;
                 document.getElementById('current-email').innerText = fullEmail;
                 
                 tg.showAlert('Mail Generated Successfully!');
                 fetchMessages();
-            } catch(e) {
+            } catch (e) {
                 tg.showAlert('Connection Error, please try again!');
             }
         }
 
         function copyMail() {
             let email = document.getElementById('current-email').innerText;
-            if(email === 'No Mail Generated') return;
+            if (email === 'No Mail Generated') return;
             navigator.clipboard.writeText(email);
             tg.HapticFeedback.notificationOccurred('success');
             tg.showAlert('Copied Email!');
         }
 
         async function fetchMessages() {
-            if(!currentLogin || !currentDomain) return;
+            if (!currentLogin || !currentDomain) return;
             try {
-                let res = await fetch(`https://www.1secmail.com/api/v1/?action=getMessages&login=${currentLogin}&domain=${currentDomain}`);
-                let messages = await res.json();
+                let targetUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${currentLogin}&domain=${currentDomain}`;
+                let messages = await fetchWithProxy(targetUrl);
+                
                 let container = document.getElementById('inbox-list');
                 container.innerHTML = '';
 
-                if(messages.length === 0) {
+                if (!messages || messages.length === 0) {
                     container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No messages received yet.</p>';
                     return;
                 }
 
-                for(let msg of messages) {
-                    let msgDetail = await fetch(`https://www.1secmail.com/api/v1/?action=readMessage&login=${currentLogin}&domain=${currentDomain}&id=${msg.id}`).then(r => r.json());
-                    let otpMatch = (msgDetail.textBody || msgDetail.body || '').match(/\b\d{4,6}\b/);
+                for (let msg of messages) {
+                    let msgUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${currentLogin}&domain=${currentDomain}&id=${msg.id}`;
+                    let msgDetail = await fetchWithProxy(msgUrl);
+                    
+                    let bodyText = msgDetail.textBody || msgDetail.body || '';
+                    let otpMatch = bodyText.match(/\b\d{4,6}\b/);
                     let otpHTML = otpMatch ? `<span class="bg-indigo-500/30 text-indigo-300 font-bold px-2 py-0.5 rounded text-xs ml-2">OTP: ${otpMatch[0]}</span>` : '';
                     
                     container.innerHTML += `
@@ -123,11 +139,11 @@
                                 ${otpHTML}
                             </div>
                             <h4 class="text-xs font-bold text-white mb-1">${msg.subject}</h4>
-                            <p class="text-xs text-gray-400 line-clamp-2">${msgDetail.textBody || 'No Text Content'}</p>
+                            <p class="text-xs text-gray-400 line-clamp-2">${bodyText || 'No Text Content'}</p>
                         </div>
                     `;
                 }
-            } catch(e) {}
+            } catch (e) {}
         }
     </script>
 </body>
