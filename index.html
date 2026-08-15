@@ -84,7 +84,6 @@
         const safeDomains = ['1secmail.com', '1secmail.org', '1secmail.net'];
         let myMailList = [];
 
-        // Telegram CloudStorage ဖြင့် Permanently Save မည် (App ထွက်လိုက်လည်း ပျောက်မသွားပါ)
         function loadMails() {
             try {
                 tg.CloudStorage.getItem(`zee_mails_${userId}`, (err, value) => {
@@ -123,10 +122,10 @@
 
         loadMails();
 
-        // 4 စက္ကန့်တစ်ကြိမ် Auto-Sync
+        // ၃ စက္ကန့်တစ်ကြိမ် OTP အလိုအလျောက် စစ်ဆေးမည်
         setInterval(() => {
             if (myMailList.length > 0) refreshAllInboxes(true);
-        }, 4000);
+        }, 3000);
 
         function loginExistingMail() {
             let input = document.getElementById('login-input').value.trim().toLowerCase();
@@ -195,15 +194,23 @@
             }).catch(()=>{});
         }
 
-        async function fetchWithProxy(url) {
-            try {
-                let res = await fetch(url);
-                if (res.ok) return await res.json();
-            } catch (e) {}
-            let proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-            let res = await fetch(proxyUrl);
-            let data = await res.json();
-            return JSON.parse(data.contents);
+        // CORS Block ကို ကျော်ရန် Proxy စနစ် ထည့်သွင်းထားသည်
+        async function fetchWithProxy(targetUrl) {
+            const proxies = [
+                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+            ];
+
+            for (let proxy of proxies) {
+                try {
+                    let res = await fetch(proxy);
+                    if (res.ok) {
+                        let data = await res.json();
+                        return data;
+                    }
+                } catch (e) {}
+            }
+            return null;
         }
 
         async function refreshAllInboxes(silent = false) {
@@ -216,34 +223,39 @@
                     let targetUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${item.login}&domain=${item.domain}`;
                     let msgs = await fetchWithProxy(targetUrl);
 
-                    if (msgs && msgs.length > 0) {
+                    if (msgs && Array.isArray(msgs) && msgs.length > 0) {
                         hasMessages = true;
                         for (let m of msgs) {
                             let msgUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${item.login}&domain=${item.domain}&id=${m.id}`;
                             let detail = await fetchWithProxy(msgUrl);
                             
-                            let body = detail.textBody || detail.body || '';
-                            let otp = body.match(/\b\d{4,8}\b/);
-                            let otpBadge = otp ? `<span class="bg-amber-400 text-black font-extrabold px-2 py-0.5 rounded text-xs shadow-sm">🔑 OTP: ${otp[0]}</span>` : '';
+                            if (detail) {
+                                let body = detail.textBody || detail.body || detail.htmlBody || '';
+                                let otp = body.match(/\b\d{4,8}\b/);
+                                let otpBadge = otp ? `<span class="bg-amber-400 text-black font-extrabold px-2 py-0.5 rounded text-xs shadow-sm">🔑 OTP: ${otp[0]}</span>` : '';
 
-                            html += `
-                                <div class="bg-gray-800/90 border border-gray-700/80 rounded-xl p-3 shadow-md">
-                                    <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-700/50">
-                                        <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono border border-indigo-800/40">To: ${item.email}</span>
-                                        ${otpBadge}
+                                html += `
+                                    <div class="bg-gray-800/90 border border-gray-700/80 rounded-xl p-3 shadow-md">
+                                        <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-700/50">
+                                            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono border border-indigo-800/40">To: ${item.email}</span>
+                                            ${otpBadge}
+                                        </div>
+                                        <div class="text-xs text-gray-400 font-medium">${m.from}</div>
+                                        <div class="text-xs font-bold text-gray-100 mt-0.5">${m.subject}</div>
+                                        <div class="text-xs text-gray-300 mt-1.5 bg-gray-950/80 p-2.5 rounded-lg font-mono line-clamp-4 border border-gray-800/80">${body}</div>
                                     </div>
-                                    <div class="text-xs text-gray-400 font-medium">${m.from}</div>
-                                    <div class="text-xs font-bold text-gray-100 mt-0.5">${m.subject}</div>
-                                    <div class="text-xs text-gray-300 mt-1.5 bg-gray-950/80 p-2.5 rounded-lg font-mono line-clamp-3 border border-gray-800/80">${body}</div>
-                                </div>
-                            `;
+                                `;
+                            }
                         }
                     }
                 } catch (e) {}
             }
 
-            if (hasMessages) container.innerHTML = html;
-            else if (!silent) container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Waiting for incoming emails...</p>';
+            if (hasMessages) {
+                container.innerHTML = html;
+            } else if (!silent) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Waiting for incoming emails...</p>';
+            }
         }
     </script>
 </body>
