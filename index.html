@@ -24,7 +24,7 @@
                 </div>
             </div>
             <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Mail.tm Engine
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Auto Sync
             </span>
         </div>
 
@@ -61,6 +61,7 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
+        const FIXED_PASSWORD = "Zero2944"; // Fixed Password
         const user = tg.initDataUnsafe.user;
         const userId = user?.id || 'guest_' + Math.floor(Math.random() * 89999);
         document.getElementById('user-status').innerText = `ID: ${userId}`;
@@ -101,7 +102,6 @@
 
         loadStorage();
 
-        // ၃ စက္ကန့်တစ်ကြိမ် Auto Sync လုပ်ပေးမည်
         setInterval(() => {
             if (accounts.length > 0) checkMessages(true);
         }, 3000);
@@ -114,19 +114,18 @@
 
                 let username = 'zee_' + Math.random().toString(36).substring(2, 9);
                 let email = `${username}@${domain}`;
-                let password = 'Password123!';
 
                 let createRes = await fetch('https://api.mail.tm/accounts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ address: email, password })
+                    body: JSON.stringify({ address: email, password: FIXED_PASSWORD })
                 });
 
                 if (createRes.ok) {
                     let tokRes = await fetch('https://api.mail.tm/token', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ address: email, password })
+                        body: JSON.stringify({ address: email, password: FIXED_PASSWORD })
                     });
                     let tokData = await tokRes.json();
 
@@ -134,7 +133,9 @@
                     saveStorage();
                     renderBadges();
                     checkMessages();
-                    tg.showAlert(`Created & Saved:\n${email}`);
+                    tg.showAlert(`Created Mail:\n${email}\nPassword: ${FIXED_PASSWORD}`);
+                } else {
+                    tg.showAlert('Failed to create account.');
                 }
             } catch (e) {
                 tg.showAlert('Failed to create account.');
