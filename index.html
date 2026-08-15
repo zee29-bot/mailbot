@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col justify-between selection:bg-indigo-500">
+<body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col justify-between">
     <div>
         <!-- Header -->
         <div class="flex items-center justify-between pb-4 border-b border-gray-800">
@@ -18,36 +18,21 @@
                 </div>
                 <div>
                     <h1 class="font-bold text-base tracking-wide flex items-center gap-2">
-                        ZEE MAIL PRO <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono">VIP</span>
+                        ZEE MAIL PRO <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono">Mail.tm</span>
                     </h1>
                     <p id="user-status" class="text-xs text-gray-500 font-mono">ID: Loading...</p>
                 </div>
             </div>
             <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-semibold flex items-center gap-1.5">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Auto Sync
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Mail.tm Engine
             </span>
-        </div>
-
-        <!-- Session Restore Input -->
-        <div class="mt-4 bg-gray-800/40 p-3 rounded-xl border border-gray-700/40">
-            <h2 class="text-xs font-semibold text-gray-400 mb-2 flex items-center gap-1.5">
-                <i class="fa-solid fa-right-to-bracket text-yellow-500"></i> Session Restore (Login)
-            </h2>
-            <div class="flex space-x-2">
-                <input id="login-input" type="text" placeholder="name@1secmail.com" class="flex-1 bg-gray-950 border border-gray-800 rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-500 text-gray-200">
-                <button onclick="loginExistingMail()" class="bg-yellow-600 hover:bg-yellow-500 px-3 py-2 rounded-lg text-xs font-medium active:scale-95 transition-all shadow-md">Restore</button>
-            </div>
         </div>
 
         <!-- Controls -->
         <div class="mt-4 space-y-2">
-            <div class="flex space-x-2">
-                <input id="custom-name" type="text" placeholder="Custom prefix..." class="flex-1 bg-gray-800/80 border border-gray-700/60 rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:border-indigo-500">
-                <button onclick="createMail('custom')" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl text-xs font-medium active:scale-95 transition-all shadow-md">Create</button>
-            </div>
-            <button onclick="createMail('auto')" class="w-full bg-gray-800 border border-gray-700/70 hover:bg-gray-700/80 text-gray-200 py-2.5 rounded-xl text-xs font-medium flex items-center justify-center space-x-2 active:scale-95 transition-all">
-                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
-                <span>Generate Random Email</span>
+            <button onclick="createNewMailTm()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl text-xs flex items-center justify-center space-x-2 active:scale-95 transition-all shadow-md">
+                <i class="fa-solid fa-plus text-indigo-200"></i>
+                <span>Create New Mail.tm Account</span>
             </button>
         </div>
 
@@ -63,17 +48,16 @@
         <!-- Feed Section -->
         <div class="mt-5">
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Inbox Stream</h2>
-                <button onclick="refreshAllInboxes()" class="text-xs text-indigo-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate"></i> Sync Feed</button>
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Inbox Stream (OTP)</h2>
+                <button onclick="checkMessages()" class="text-xs text-indigo-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate"></i> Sync Feed</button>
             </div>
             <div id="inbox-list" class="space-y-3">
-                <p class="text-xs text-gray-500 text-center py-6">Waiting for incoming emails...</p>
+                <p class="text-xs text-gray-500 text-center py-6">Waiting for incoming messages...</p>
             </div>
         </div>
     </div>
 
     <script>
-        const BOT_TOKEN = "8815393066:AAHQsWeDn78kQyCAZoQBcU7p9H42uxpkIwQ";
         const tg = window.Telegram.WebApp;
         tg.expand();
 
@@ -81,168 +65,142 @@
         const userId = user?.id || 'guest_' + Math.floor(Math.random() * 89999);
         document.getElementById('user-status').innerText = `ID: ${userId}`;
 
-        const safeDomains = ['1secmail.com', '1secmail.org', '1secmail.net'];
-        let myMailList = [];
+        let accounts = [];
 
-        function loadMails() {
+        function loadStorage() {
             try {
-                tg.CloudStorage.getItem(`zee_mails_${userId}`, (err, value) => {
-                    if (!err && value) {
-                        myMailList = JSON.parse(value);
-                    } else {
-                        myMailList = JSON.parse(localStorage.getItem(`zee_mails_${userId}`)) || [];
-                    }
-                    syncUrlMail();
+                tg.CloudStorage.getItem(`zee_mailtm_${userId}`, (err, val) => {
+                    if (!err && val) accounts = JSON.parse(val);
+                    else accounts = JSON.parse(localStorage.getItem(`zee_mailtm_${userId}`)) || [];
+                    checkUrlParams();
                 });
             } catch(e) {
-                myMailList = JSON.parse(localStorage.getItem(`zee_mails_${userId}`)) || [];
-                syncUrlMail();
+                accounts = JSON.parse(localStorage.getItem(`zee_mailtm_${userId}`)) || [];
+                checkUrlParams();
             }
         }
 
-        function saveToStorage() {
-            let data = JSON.stringify(myMailList);
-            localStorage.setItem(`zee_mails_${userId}`, data);
-            try { tg.CloudStorage.setItem(`zee_mails_${userId}`, data); } catch(e){}
+        function saveStorage() {
+            let data = JSON.stringify(accounts);
+            localStorage.setItem(`zee_mailtm_${userId}`, data);
+            try { tg.CloudStorage.setItem(`zee_mailtm_${userId}`, data); } catch(e){}
         }
 
-        function syncUrlMail() {
+        function checkUrlParams() {
             const urlParams = new URLSearchParams(window.location.search);
-            const autoMailParam = urlParams.get('add_email');
-            if (autoMailParam && autoMailParam.includes('@')) {
-                let [l, d] = autoMailParam.split('@');
-                if (!myMailList.some(m => m.email === autoMailParam)) {
-                    myMailList.push({ login: l, domain: d, email: autoMailParam });
-                    saveToStorage();
-                }
+            const email = urlParams.get('email');
+            const token = urlParams.get('token');
+
+            if (email && token && !accounts.some(a => a.email === email)) {
+                accounts.push({ email, token });
+                saveStorage();
             }
-            renderMailBadges();
-            if (myMailList.length > 0) refreshAllInboxes();
+            renderBadges();
+            if (accounts.length > 0) checkMessages();
         }
 
-        loadMails();
+        loadStorage();
 
-        // ၃ စက္ကန့်တစ်ကြိမ် OTP အလိုအလျောက် စစ်ဆေးမည်
+        // ၃ စက္ကန့်တစ်ကြိမ် Auto Sync လုပ်ပေးမည်
         setInterval(() => {
-            if (myMailList.length > 0) refreshAllInboxes(true);
+            if (accounts.length > 0) checkMessages(true);
         }, 3000);
 
-        function loginExistingMail() {
-            let input = document.getElementById('login-input').value.trim().toLowerCase();
-            if (!input.includes('@')) return tg.showAlert('Invalid Email format.');
+        async function createNewMailTm() {
+            try {
+                let domRes = await fetch('https://api.mail.tm/domains');
+                let domData = await domRes.json();
+                let domain = domData['hydra:member'][0].domain;
 
-            let [login, domain] = input.split('@');
-            if (!myMailList.some(m => m.email === input)) {
-                myMailList.push({ login, domain, email: input });
-                saveToStorage();
-                renderMailBadges();
-                refreshAllInboxes();
-                tg.showAlert(`Session Restored:\n${input}`);
+                let username = 'zee_' + Math.random().toString(36).substring(2, 9);
+                let email = `${username}@${domain}`;
+                let password = 'Password123!';
+
+                let createRes = await fetch('https://api.mail.tm/accounts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ address: email, password })
+                });
+
+                if (createRes.ok) {
+                    let tokRes = await fetch('https://api.mail.tm/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address: email, password })
+                    });
+                    let tokData = await tokRes.json();
+
+                    accounts.push({ email, token: tokData.token });
+                    saveStorage();
+                    renderBadges();
+                    checkMessages();
+                    tg.showAlert(`Created & Saved:\n${email}`);
+                }
+            } catch (e) {
+                tg.showAlert('Failed to create account.');
             }
-            document.getElementById('login-input').value = '';
         }
 
-        function createMail(type) {
-            let prefix = type === 'custom' ? document.getElementById('custom-name').value.trim() : 'zee_' + Math.floor(Math.random() * 899999 + 100000);
-            if (!prefix) return tg.showAlert('Enter valid prefix!');
-
-            let cleanPrefix = prefix.toLowerCase().replace(/[^a-z0-9]/g, '');
-            let domain = safeDomains[Math.floor(Math.random() * safeDomains.length)];
-            let fullEmail = `${cleanPrefix}@${domain}`;
-
-            if (myMailList.some(m => m.email === fullEmail)) return tg.showAlert('Mail already active!');
-
-            myMailList.push({ login: cleanPrefix, domain, email: fullEmail });
-            saveToStorage();
-            renderMailBadges();
-            refreshAllInboxes();
-            sendToTelegram(fullEmail);
-            document.getElementById('custom-name').value = '';
-        }
-
-        function renderMailBadges() {
+        function renderBadges() {
             const container = document.getElementById('created-mails-container');
-            if (myMailList.length === 0) {
+            if (accounts.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-600">No active mailboxes.</p>';
                 return;
             }
-            container.innerHTML = myMailList.map(item => `
-                <div onclick="copyText('${item.email}')" class="bg-gray-800 border border-indigo-500/30 text-indigo-300 text-xs px-2.5 py-1.5 rounded-xl font-mono cursor-pointer flex items-center space-x-1.5 hover:border-indigo-400 active:scale-95 transition-all">
-                    <i class="fa-regular fa-copy text-indigo-400"></i><span>${item.email}</span>
+            container.innerHTML = accounts.map(a => `
+                <div onclick="copyText('${a.email}')" class="bg-gray-800 border border-indigo-500/30 text-indigo-300 text-xs px-2.5 py-1.5 rounded-xl font-mono cursor-pointer flex items-center space-x-1.5 hover:border-indigo-400">
+                    <i class="fa-regular fa-copy text-indigo-400"></i><span>${a.email}</span>
                 </div>
             `).join('');
         }
 
         function clearAllMails() {
-            myMailList = [];
-            saveToStorage();
-            renderMailBadges();
-            document.getElementById('inbox-list').innerHTML = '<p class="text-xs text-gray-500 text-center py-6">All active mailboxes cleared.</p>';
+            accounts = [];
+            saveStorage();
+            renderBadges();
+            document.getElementById('inbox-list').innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Cleared all active accounts.</p>';
         }
 
         function copyText(text) {
             navigator.clipboard.writeText(text);
-            tg.showAlert(`Copied to clipboard:\n${text}`);
+            tg.showAlert(`Copied:\n${text}`);
         }
 
-        async function sendToTelegram(msg) {
-            if (!user?.id) return;
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: user.id, text: `✉️ **New Address Active:** \`${msg}\``, parse_mode: 'Markdown' })
-            }).catch(()=>{});
-        }
+        async function checkMessages(silent = false) {
+            let container = document.getElementById('inbox-list');
+            let html = '';
+            let hasMsg = false;
 
-        // CORS Block ကို ကျော်ရန် Proxy စနစ် ထည့်သွင်းထားသည်
-        async function fetchWithProxy(targetUrl) {
-            const proxies = [
-                `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-            ];
-
-            for (let proxy of proxies) {
+            for (let acc of accounts) {
                 try {
-                    let res = await fetch(proxy);
+                    let res = await fetch('https://api.mail.tm/messages', {
+                        headers: { 'Authorization': `Bearer ${acc.token}` }
+                    });
                     if (res.ok) {
                         let data = await res.json();
-                        return data;
-                    }
-                } catch (e) {}
-            }
-            return null;
-        }
+                        let msgs = data['hydra:member'];
 
-        async function refreshAllInboxes(silent = false) {
-            let container = document.getElementById('inbox-list');
-            let hasMessages = false;
-            let html = '';
+                        if (msgs && msgs.length > 0) {
+                            hasMsg = true;
+                            for (let m of msgs) {
+                                let dRes = await fetch(`https://api.mail.tm/messages/${m.id}`, {
+                                    headers: { 'Authorization': `Bearer ${acc.token}` }
+                                });
+                                let d = await dRes.json();
+                                let body = d.text || d.html || '';
 
-            for (let item of myMailList) {
-                try {
-                    let targetUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${item.login}&domain=${item.domain}`;
-                    let msgs = await fetchWithProxy(targetUrl);
-
-                    if (msgs && Array.isArray(msgs) && msgs.length > 0) {
-                        hasMessages = true;
-                        for (let m of msgs) {
-                            let msgUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${item.login}&domain=${item.domain}&id=${m.id}`;
-                            let detail = await fetchWithProxy(msgUrl);
-                            
-                            if (detail) {
-                                let body = detail.textBody || detail.body || detail.htmlBody || '';
                                 let otp = body.match(/\b\d{4,8}\b/);
-                                let otpBadge = otp ? `<span class="bg-amber-400 text-black font-extrabold px-2 py-0.5 rounded text-xs shadow-sm">🔑 OTP: ${otp[0]}</span>` : '';
+                                let otpBadge = otp ? `<span class="bg-amber-400 text-black font-extrabold px-2 py-0.5 rounded text-xs">🔑 OTP: ${otp[0]}</span>` : '';
 
                                 html += `
-                                    <div class="bg-gray-800/90 border border-gray-700/80 rounded-xl p-3 shadow-md">
-                                        <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-700/50">
-                                            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono border border-indigo-800/40">To: ${item.email}</span>
+                                    <div class="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-md">
+                                        <div class="flex justify-between items-center mb-2 pb-1 border-b border-gray-700/50">
+                                            <span class="text-[10px] bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded font-mono">To: ${acc.email}</span>
                                             ${otpBadge}
                                         </div>
-                                        <div class="text-xs text-gray-400 font-medium">${m.from}</div>
-                                        <div class="text-xs font-bold text-gray-100 mt-0.5">${m.subject}</div>
-                                        <div class="text-xs text-gray-300 mt-1.5 bg-gray-950/80 p-2.5 rounded-lg font-mono line-clamp-4 border border-gray-800/80">${body}</div>
+                                        <div class="text-xs text-gray-400">${d.from.address}</div>
+                                        <div class="text-xs font-bold text-gray-100 mt-0.5">${d.subject}</div>
+                                        <div class="text-xs text-gray-300 mt-1.5 bg-gray-950 p-2.5 rounded font-mono line-clamp-4">${body}</div>
                                     </div>
                                 `;
                             }
@@ -251,11 +209,8 @@
                 } catch (e) {}
             }
 
-            if (hasMessages) {
-                container.innerHTML = html;
-            } else if (!silent) {
-                container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Waiting for incoming emails...</p>';
-            }
+            if (hasMsg) container.innerHTML = html;
+            else if (!silent) container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Waiting for incoming messages...</p>';
         }
     </script>
 </body>
