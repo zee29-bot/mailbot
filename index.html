@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fake Mail Pro</title>
+    <title>Zee Mail Hub Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -13,49 +13,53 @@
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-4 flex flex-col justify-between">
     <div>
-        <!-- Header -->
+        <!-- Header Section -->
         <div class="flex items-center justify-between pb-4 border-b border-gray-800">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-lg">
-                    <i class="fa-solid fa-envelope-open-text"></i>
+                <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-user-shield"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg">Fake Mail Pro</h1>
-                    <p id="user-status" class="text-xs text-gray-400">Loading user info...</p>
+                    <h1 class="font-bold text-lg">ZEE PRIVATE MAIL HUB</h1>
+                    <p id="user-status" class="text-xs text-gray-400">Isolated Session Active</p>
                 </div>
             </div>
-            <span class="px-3 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded-full text-xs font-semibold">v2.0 WebApp</span>
+            <span class="px-3 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-xs font-semibold flex items-center gap-1">
+                <i class="fa-solid fa-lock text-[10px]"></i> Encrypted
+            </span>
         </div>
 
-        <!-- Controls -->
+        <!-- Controls Section -->
         <div class="mt-6 space-y-3">
-            <button onclick="generateMail('auto')" class="w-full bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white py-3 px-4 rounded-xl font-medium flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                <span>Auto Generate Mail</span>
-            </button>
             <div class="flex space-x-2">
-                <input id="custom-name" type="text" placeholder="Custom mail name..." class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500">
-                <button onclick="generateMail('custom')" class="bg-gray-800 border border-gray-700 hover:bg-gray-700 px-4 py-2.5 rounded-xl text-sm font-medium active:scale-95 transition-all">Create</button>
+                <input id="custom-name" type="text" placeholder="Custom mail name..." class="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 font-mono">
+                <button onclick="createMail('custom')" class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all px-4 py-2.5 rounded-xl text-sm font-medium shadow-md shadow-indigo-600/20">Create</button>
             </div>
+            <button onclick="createMail('auto')" class="w-full bg-gray-800 hover:bg-gray-700 border border-gray-700 active:scale-95 transition-all text-gray-200 py-2.5 px-4 rounded-xl text-sm font-medium flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                <span>Auto Generate Random Mail</span>
+            </button>
         </div>
 
-        <!-- Active Mail Card -->
+        <!-- Active Created Mails Display -->
         <div class="mt-6">
-            <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Current Mail Address</h2>
-            <div id="active-mail-box" class="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center justify-between">
-                <span id="current-email" class="text-sm font-mono text-indigo-300">No Mail Generated</span>
-                <button onclick="copyMail()" class="text-gray-400 hover:text-white p-2"><i class="fa-regular fa-copy"></i></button>
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Active Mails (Tap to Copy)</h2>
+                <button onclick="clearAllMails()" class="text-[11px] text-red-400 hover:underline"><i class="fa-solid fa-trash-can"></i> Clear All</button>
+            </div>
+            <div id="created-mails-container" class="flex flex-wrap gap-2">
+                <p class="text-xs text-gray-600 py-2">No active mails created.</p>
             </div>
         </div>
 
-        <!-- Inbox List -->
+        <!-- Live Message Feeds & OTP -->
         <div class="mt-6">
             <div class="flex items-center justify-between mb-3">
-                <h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Inbox / OTP Messages</h2>
-                <button onclick="fetchMessages()" class="text-xs text-indigo-400 hover:underline"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                <h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multi-Inbox Messages & OTPs</h2>
+                <button onclick="refreshAllInboxes()" class="text-xs text-indigo-400 hover:underline flex items-center gap-1"><i class="fa-solid fa-rotate"></i> Sync All</button>
             </div>
             <div id="inbox-list" class="space-y-3">
-                <p class="text-xs text-gray-500 text-center py-4">No messages received yet.</p>
+                <p class="text-xs text-gray-500 text-center py-4">Create emails above to check incoming OTPs.</p>
             </div>
         </div>
     </div>
@@ -63,87 +67,123 @@
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
-        document.getElementById('user-status').innerText = `User ID: ${tg.initDataUnsafe.user?.id || 'Guest'}`;
 
-        let currentLogin = '';
-        let currentDomain = '1secmail.com';
+        const userId = tg.initDataUnsafe.user?.id || 'guest_' + Math.floor(Math.random() * 89999);
+        document.getElementById('user-status').innerText = `Session ID: Sec-${userId}`;
 
-        const domainsList = ['1secmail.com', '1secmail.org', '1secmail.net'];
+        const safeDomains = ['1secmail.com', '1secmail.org', '1secmail.net', 'esi2.net', 'icznn.com'];
+        let myMailList = [];
+
+        function createMail(type) {
+            tg.HapticFeedback.impactOccurred('medium');
+            let inputField = document.getElementById('custom-name');
+            let prefix = type === 'custom' ? inputField.value.trim() : 'zee_' + Math.floor(Math.random() * 899999 + 100000);
+            
+            if (!prefix) return tg.showAlert('Please type a mail prefix!');
+
+            let cleanPrefix = prefix.toLowerCase().replace(/[^a-z0-9]/g, '');
+            let selectedDomain = safeDomains[Math.floor(Math.random() * safeDomains.length)];
+            let fullEmail = `${cleanPrefix}@${selectedDomain}`;
+
+            if (myMailList.some(m => m.email === fullEmail)) {
+                return tg.showAlert('This email is already active in your list!');
+            }
+
+            myMailList.push({ login: cleanPrefix, domain: selectedDomain, email: fullEmail });
+            inputField.value = '';
+            
+            renderMailBadges();
+            tg.showAlert(`Created Successfully:\n${fullEmail}`);
+            refreshAllInboxes();
+        }
+
+        function renderMailBadges() {
+            const container = document.getElementById('created-mails-container');
+            if (myMailList.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-600 py-2">No active mails created.</p>';
+                return;
+            }
+
+            container.innerHTML = myMailList.map(item => `
+                <div onclick="copyText('${item.email}')" class="bg-gray-800 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 text-xs px-3 py-1.5 rounded-xl font-mono cursor-pointer transition-all flex items-center space-x-1 shadow-sm">
+                    <i class="fa-regular fa-copy text-indigo-400"></i>
+                    <span>${item.email}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearAllMails() {
+            myMailList = [];
+            renderMailBadges();
+            document.getElementById('inbox-list').innerHTML = '<p class="text-xs text-gray-500 text-center py-4">Create emails above to check incoming OTPs.</p>';
+            tg.showAlert('All active mails cleared!');
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text);
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.showAlert(`Copied to clipboard:\n${text}`);
+        }
 
         async function fetchWithProxy(url) {
             try {
                 let res = await fetch(url);
                 if (res.ok) return await res.json();
             } catch (e) {}
-            
-            // Fallback Proxy for Network Block / CORS Error
+
             let proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
             let res = await fetch(proxyUrl);
             let data = await res.json();
             return JSON.parse(data.contents);
         }
 
-        async function generateMail(type) {
-            try {
-                tg.HapticFeedback.impactOccurred('medium');
-                let name = type === 'custom' ? document.getElementById('custom-name').value.trim() : 'user' + Math.floor(Math.random() * 899999 + 100000);
-                if (!name) return tg.showAlert('Please enter a custom name!');
+        async function refreshAllInboxes() {
+            if (myMailList.length === 0) return;
+            tg.HapticFeedback.impactOccurred('light');
 
-                currentLogin = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                currentDomain = domainsList[Math.floor(Math.random() * domainsList.length)];
-                
-                let fullEmail = `${currentLogin}@${currentDomain}`;
-                document.getElementById('current-email').innerText = fullEmail;
-                
-                tg.showAlert('Mail Generated Successfully!');
-                fetchMessages();
-            } catch (e) {
-                tg.showAlert('Connection Error, please try again!');
+            let container = document.getElementById('inbox-list');
+            let hasMessages = false;
+            let combinedHTML = '';
+
+            for (let mailObj of myMailList) {
+                try {
+                    let targetUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${mailObj.login}&domain=${mailObj.domain}`;
+                    let messages = await fetchWithProxy(targetUrl);
+
+                    if (messages && messages.length > 0) {
+                        hasMessages = true;
+                        for (let msg of messages) {
+                            let msgUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${mailObj.login}&domain=${mailObj.domain}&id=${msg.id}`;
+                            let msgDetail = await fetchWithProxy(msgUrl);
+                            
+                            let bodyText = msgDetail.textBody || msgDetail.body || '';
+                            let otpMatch = bodyText.match(/\b\d{4,6}\b/);
+                            let otpHTML = otpMatch ? `<span class="bg-indigo-500/30 text-indigo-300 font-bold px-2 py-0.5 rounded text-xs">OTP: ${otpMatch[0]}</span>` : '';
+
+                            combinedHTML += `
+                                <div class="bg-gray-800 border border-gray-700 rounded-xl p-3 shadow-md">
+                                    <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-gray-700/50">
+                                        <span class="text-[10px] bg-indigo-950 text-indigo-300 border border-indigo-700/40 px-2 py-0.5 rounded font-mono">To: ${mailObj.email}</span>
+                                        ${otpHTML}
+                                    </div>
+                                    <div class="flex justify-between items-center text-xs text-gray-400 mb-1">
+                                        <span class="font-medium text-gray-300">${msg.from}</span>
+                                        <span class="text-[10px]">${msg.date || ''}</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white mb-1">${msg.subject}</h4>
+                                    <p class="text-xs text-gray-400 line-clamp-2">${bodyText}</p>
+                                </div>
+                            `;
+                        }
+                    }
+                } catch (e) {}
             }
-        }
 
-        function copyMail() {
-            let email = document.getElementById('current-email').innerText;
-            if (email === 'No Mail Generated') return;
-            navigator.clipboard.writeText(email);
-            tg.HapticFeedback.notificationOccurred('success');
-            tg.showAlert('Copied Email!');
-        }
-
-        async function fetchMessages() {
-            if (!currentLogin || !currentDomain) return;
-            try {
-                let targetUrl = `https://www.1secmail.com/api/v1/?action=getMessages&login=${currentLogin}&domain=${currentDomain}`;
-                let messages = await fetchWithProxy(targetUrl);
-                
-                let container = document.getElementById('inbox-list');
-                container.innerHTML = '';
-
-                if (!messages || messages.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No messages received yet.</p>';
-                    return;
-                }
-
-                for (let msg of messages) {
-                    let msgUrl = `https://www.1secmail.com/api/v1/?action=readMessage&login=${currentLogin}&domain=${currentDomain}&id=${msg.id}`;
-                    let msgDetail = await fetchWithProxy(msgUrl);
-                    
-                    let bodyText = msgDetail.textBody || msgDetail.body || '';
-                    let otpMatch = bodyText.match(/\b\d{4,6}\b/);
-                    let otpHTML = otpMatch ? `<span class="bg-indigo-500/30 text-indigo-300 font-bold px-2 py-0.5 rounded text-xs ml-2">OTP: ${otpMatch[0]}</span>` : '';
-                    
-                    container.innerHTML += `
-                        <div class="bg-gray-800 border border-gray-700 rounded-xl p-3">
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-xs font-semibold text-gray-300">${msg.from}</span>
-                                ${otpHTML}
-                            </div>
-                            <h4 class="text-xs font-bold text-white mb-1">${msg.subject}</h4>
-                            <p class="text-xs text-gray-400 line-clamp-2">${bodyText || 'No Text Content'}</p>
-                        </div>
-                    `;
-                }
-            } catch (e) {}
+            if (!hasMessages) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No messages received yet.</p>';
+            } else {
+                container.innerHTML = combinedHTML;
+            }
         }
     </script>
 </body>
